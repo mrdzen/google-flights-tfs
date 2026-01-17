@@ -1,0 +1,32 @@
+{
+  "name": "google-flights-tfs",
+  "version": "1.0.0",
+  "description": "Decoder for Google Flights ?tfs= URL parameter (protobuf)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrdzen/google-flights-tfs.git"
+  },
+  "keywords": [
+    "google-flights",
+    "tfs",
+    "protobuf",
+    "decoder"
+  ],
+  "author": "mrdzen",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}
