@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decodeTfs, TfsData, TfsFlightSegment, TfsPassengers, TfsSeatClass, TfsTripType } from '../src/index';
+import { decodeTfs, TfsData, TfsFlightSegment, TfsPassengers, TfsSeatClass, TfsSelectedLeg, TfsTripType } from '../src/index';
 
 describe('decodeTfs', () => {
   // === Edge cases ===
@@ -131,11 +131,69 @@ describe('decodeTfs', () => {
       };
       const seatClass: TfsSeatClass = 'economy';
       const tripType: TfsTripType = 'one-way';
+      const leg: TfsSelectedLeg = { origin: '', destination: '', date: '', carrier: '', flightNumber: '' };
 
       expect(segment).toBeDefined();
       expect(passengers).toBeDefined();
       expect(seatClass).toBeDefined();
       expect(tripType).toBeDefined();
+      expect(leg).toBeDefined();
+    });
+  });
+
+  // === Selected flights (booking page URLs) ===
+  describe('Selected flights', () => {
+    // WMI⇄STN, Ryanair nonstop, 2 adults
+    const ROUND_TRIP_NONSTOP = 'CBwQAhpKEgoyMDI2LTExLTEwIiAKA1dNSRIKMjAyNi0xMS0xMBoDU1ROKgJGUjIEMTAyMmoMCAISCC9tLzA4MW1fcgwIAhIIL20vMDRqcGwaShIKMjAyNi0xMS0xNCIgCgNTVE4SCjIwMjYtMTEtMTQaA1dNSSoCRlIyBDEwMjFqDAgCEggvbS8wNGpwbHIMCAISCC9tLzA4MW1fQAFAAUgBcAGCAQsI____________AZgBAQ';
+    // WAW⇄LIS, one stop each way (ZRH out, MUC back), 1 adult
+    const ROUND_TRIP_CONNECTING = 'CBwQAhpiEgoyMDI2LTExLTEwIiAKA1dBVxIKMjAyNi0xMS0xMBoDWlJIKgJMWDIEMTM0MyIgCgNaUkgSCjIwMjYtMTEtMTAaA0xJUyoCTFgyBDIwODRqBwgBEgNXQVdyBwgBEgNMSVMaYhIKMjAyNi0xMS0xNyIgCgNMSVMSCjIwMjYtMTEtMTcaA01VQyoCTEgyBDE3NzkiIAoDTVVDEgoyMDI2LTExLTE3GgNXQVcqAkxIMgQxNjE2agcIARIDTElTcgcIARIDV0FXQAFIAXABggELCP___________wGYAQE';
+    // ROUND_TRIP_NONSTOP without the return segment
+    const ONE_WAY = 'CBwQAhpKEgoyMDI2LTExLTEwIiAKA1dNSRIKMjAyNi0xMS0xMBoDU1ROKgJGUjIEMTAyMmoMCAISCC9tLzA4MW1fcgwIAhIIL20vMDRqcGxAAUABSAFwAYIBCwj___________8BmAEB';
+
+    it('decodes one leg per nonstop segment', () => {
+      const result = decodeTfs(ROUND_TRIP_NONSTOP);
+
+      expect(result).not.toBeNull();
+      expect(result!.trip).toBe('round-trip');
+      expect(result!.passengers.adults).toBe(2);
+      expect(result!.flights.map(f => f.selected)).toEqual([
+        [{ origin: 'WMI', destination: 'STN', date: '2026-11-10', carrier: 'FR', flightNumber: '1022' }],
+        [{ origin: 'STN', destination: 'WMI', date: '2026-11-14', carrier: 'FR', flightNumber: '1021' }]
+      ]);
+    });
+
+    it('decodes every leg of a connecting segment in order', () => {
+      const result = decodeTfs(ROUND_TRIP_CONNECTING);
+
+      expect(result).not.toBeNull();
+      expect(result!.trip).toBe('round-trip');
+      expect(result!.flights.map(f => [f.origin, f.destination])).toEqual([['WAW', 'LIS'], ['LIS', 'WAW']]);
+      expect(result!.flights.map(f => f.selected)).toEqual([
+        [
+          { origin: 'WAW', destination: 'ZRH', date: '2026-11-10', carrier: 'LX', flightNumber: '1343' },
+          { origin: 'ZRH', destination: 'LIS', date: '2026-11-10', carrier: 'LX', flightNumber: '2084' }
+        ],
+        [
+          { origin: 'LIS', destination: 'MUC', date: '2026-11-17', carrier: 'LH', flightNumber: '1779' },
+          { origin: 'MUC', destination: 'WAW', date: '2026-11-17', carrier: 'LH', flightNumber: '1616' }
+        ]
+      ]);
+    });
+
+    it('decodes a one-way booking', () => {
+      const result = decodeTfs(ONE_WAY);
+
+      expect(result).not.toBeNull();
+      expect(result!.trip).toBe('one-way');
+      expect(result!.flights).toHaveLength(1);
+      expect(result!.flights[0].selected).toHaveLength(1);
+    });
+
+    it('leaves selected undefined on search URLs', () => {
+      const result = decodeTfs('GAE=');
+
+      expect(result).not.toBeNull();
+      result!.flights.forEach(f => expect(f.selected).toBeUndefined());
     });
   });
 

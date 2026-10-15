@@ -68,6 +68,15 @@ interface TfsFlightSegment {
   destination: string;    // Destination location ID
   maxStops: number | null; // Maximum number of stops, null if not specified
   airlines: string[];     // List of airline IDs
+  selected?: TfsSelectedLeg[]; // Booking page URLs only: the chosen flight, one entry per leg
+}
+
+interface TfsSelectedLeg {
+  origin: string;         // IATA code
+  destination: string;    // IATA code
+  date: string;           // YYYY-MM-DD
+  carrier: string;        // IATA airline code, e.g. 'FR'
+  flightNumber: string;   // e.g. '1022'
 }
 
 type TfsSeatClass = 'economy' | 'premium-economy' | 'business' | 'first' | 'unknown';

@@ -1,11 +1,21 @@
 // === Types ===
 
+export interface TfsSelectedLeg {
+  origin: string;
+  destination: string;
+  date: string;
+  carrier: string;
+  flightNumber: string;
+}
+
 export interface TfsFlightSegment {
   date: string;
   origin: string;
   destination: string;
   maxStops: number | null;
   airlines: string[];
+  // Flights chosen by the user (booking page URLs): one entry per leg, in order
+  selected?: TfsSelectedLeg[];
 }
 
 export type TfsSeatClass = 'economy' | 'premium-economy' | 'business' | 'first' | 'unknown';
@@ -171,6 +181,38 @@ function parseLocationId(data: Uint8Array): string {
   return '';
 }
 
+// Selected flight leg (field 4 of a segment): 1 origin IATA, 2 date, 3 destination IATA, 5 carrier, 6 flight number
+function parseSelectedLeg(data: Uint8Array): TfsSelectedLeg {
+  const reader = new ByteReader(data);
+  const leg: TfsSelectedLeg = {
+    origin: '',
+    destination: '',
+    date: '',
+    carrier: '',
+    flightNumber: ''
+  };
+
+  while (reader.hasMore()) {
+    const tag = reader.readVarInt();
+    const fieldNum = tag >> 3;
+    const wireType = tag & 0x07;
+
+    if (wireType === 2 && [1, 2, 3, 5, 6].includes(fieldNum)) {
+      const len = reader.readVarInt();
+      const value = reader.readString(len);
+      if (fieldNum === 1) leg.origin = value;
+      else if (fieldNum === 2) leg.date = value;
+      else if (fieldNum === 3) leg.destination = value;
+      else if (fieldNum === 5) leg.carrier = value;
+      else leg.flightNumber = value;
+    } else {
+      skipField(reader, wireType);
+    }
+  }
+
+  return leg;
+}
+
 function parseFlightSegment(data: Uint8Array): TfsFlightSegment {
   const reader = new ByteReader(data);
   const segment: TfsFlightSegment = {
@@ -211,6 +253,11 @@ function parseFlightSegment(data: Uint8Array): TfsFlightSegment {
       if (airlineCode) {
         segment.airlines.push(airlineCode);
       }
+    } else if (fieldNum === 4 && wireType === 2) {
+      // Selected flight leg
+      const len = reader.readVarInt();
+      const leg = parseSelectedLeg(reader.readBytes(len));
+      segment.selected = [...(segment.selected ?? []), leg];
     } else {
       skipField(reader, wireType);
     }

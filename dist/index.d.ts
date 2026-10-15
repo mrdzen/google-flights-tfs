@@ -1,9 +1,17 @@
+export interface TfsSelectedLeg {
+    origin: string;
+    destination: string;
+    date: string;
+    carrier: string;
+    flightNumber: string;
+}
 export interface TfsFlightSegment {
     date: string;
     origin: string;
     destination: string;
     maxStops: number | null;
     airlines: string[];
+    selected?: TfsSelectedLeg[];
 }
 export type TfsSeatClass = 'economy' | 'premium-economy' | 'business' | 'first' | 'unknown';
 export type TfsTripType = 'round-trip' | 'one-way' | 'multi-city' | 'unknown';

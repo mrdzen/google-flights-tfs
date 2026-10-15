@@ -128,6 +128,40 @@ function parseLocationId(data) {
     }
     return '';
 }
+// Selected flight leg (field 4 of a segment): 1 origin IATA, 2 date, 3 destination IATA, 5 carrier, 6 flight number
+function parseSelectedLeg(data) {
+    const reader = new ByteReader(data);
+    const leg = {
+        origin: '',
+        destination: '',
+        date: '',
+        carrier: '',
+        flightNumber: ''
+    };
+    while (reader.hasMore()) {
+        const tag = reader.readVarInt();
+        const fieldNum = tag >> 3;
+        const wireType = tag & 0x07;
+        if (wireType === 2 && [1, 2, 3, 5, 6].includes(fieldNum)) {
+            const len = reader.readVarInt();
+            const value = reader.readString(len);
+            if (fieldNum === 1)
+                leg.origin = value;
+            else if (fieldNum === 2)
+                leg.date = value;
+            else if (fieldNum === 3)
+                leg.destination = value;
+            else if (fieldNum === 5)
+                leg.carrier = value;
+            else
+                leg.flightNumber = value;
+        }
+        else {
+            skipField(reader, wireType);
+        }
+    }
+    return leg;
+}
 function parseFlightSegment(data) {
     const reader = new ByteReader(data);
     const segment = {
@@ -170,6 +204,12 @@ function parseFlightSegment(data) {
             if (airlineCode) {
                 segment.airlines.push(airlineCode);
             }
+        }
+        else if (fieldNum === 4 && wireType === 2) {
+            // Selected flight leg
+            const len = reader.readVarInt();
+            const leg = parseSelectedLeg(reader.readBytes(len));
+            segment.selected = [...(segment.selected ?? []), leg];
         }
         else {
             skipField(reader, wireType);
